@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!--#region SEO & Metadata -->
+    <meta charset="UTF-8">
+    <title>Spelunker - A Retro Cave Exploration Arcade Game</title>
+    <meta name="description" content="Dive into Spelunker, a thrilling retro-style arcade game. Explore procedurally generated caves, collect keys, avoid deadly traps, and find the exit. Can you survive the depths?">
+    <meta name="keywords" content="spelunker, cave explorer, retro game, arcade game, platformer, 8-bit, procedural generation, javascript game">
+    <meta name="author" content="Chris Pirillo">
+    <link rel="canonical" href="https://pirillo.com/arcade/spelunker.html">
+    <!--#endregion -->
+
+    <!--#region Core Vitals & Performance Hints -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://www.googletagmanager.com">
+    <!-- Preload the WOFF2 font file for faster Largest Contentful Paint (LCP) -->
+    <link rel="preload" href="https://fonts.gstatic.com/s/pressstart2p/v15/e3t4euO8T-267oIAQAu6jDQyK3nVivM.woff2" as="font" type="font/woff2" crossorigin>
+    <!-- Preload the main sound library script -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js" as="script">
+    <!--#endregion -->
+
+    <!--#region Open Graph & Twitter Card Metadata -->
+    <meta property="og:title" content="Spelunker - A Retro Cave Exploration Game">
+    <meta property="og:description" content="Explore procedurally generated caves, collect keys, and avoid traps in this retro-style arcade platformer.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pirillo.com/arcade/spelunker.html">
+    <meta property="og:image" content="https://pirillo.com/arcade/images/spelunker.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="Chris Pirillo's Arcade">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@ChrisPirillo">
+    <meta name="twitter:creator" content="@ChrisPirillo">
+    <meta name="twitter:title" content="Spelunker - A Retro Cave Exploration Game">
+    <meta name="twitter:description" content="Explore procedurally generated caves, collect keys, and avoid traps in this retro-style arcade platformer.">
+    <meta name="twitter:image" content="https://pirillo.com/arcade/images/spelunker.png">
+    <!--#endregion -->
+
+    <!--#region Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1CQ4D3VQ3L"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-1CQ4D3VQ3L');
+    </script>
+    <!--#endregion -->
+    
+    <!--#region Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "VideoGame",
+      "name": "Spelunker",
+      "url": "https://pirillo.com/arcade/spelunker.html",
+      "author": {
+        "@type": "Person",
+        "name": "Chris Pirillo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Chris Pirillo"
+      },
+      "description": "A retro-style arcade platformer where players explore procedurally generated caves, collect keys, and avoid deadly traps to find the exit.",
+      "image": "https://pirillo.com/arcade/images/spelunker.png",
+      "applicationCategory": "Game",
+      "operatingSystem": "Any (Web Browser)",
+      "genre": ["Arcade game", "Platformer"],
+      "playMode": "SinglePlayer"
+    }
+    </script>
+    <!--#endregion -->
+
+    <!-- Defer loading of the sound library to prevent render-blocking -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js" defer></script>
+    
+    <!-- Non-render-blocking font stylesheet loading -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"></noscript>
+
+    <!-- Critical CSS is inlined below. It is unchanged from the original. -->
+    <style>
+        /* Basic reset and font setup */
+        body {
+            font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
+            overscroll-behavior: none; /* Prevents pull-to-refresh on mobile */
+            background-color: #111111;
+            color: white;
+        }
+        
+        /* Full-screen container setup */
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        /* Game container centers the canvas */
+        main { /* Using main for semantic HTML */
+            position: relative; /* Needed for positioning touch controls */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* The game canvas itself */
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 0; 
+            box-shadow: none;
+            image-rendering: pixelated; /* Ensures sharp pixels for retro look */
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            background-color: #111111; 
+        }
+
+        /* Touch Controls - Hidden by default, enabled via JS for mobile. Position:fixed prevents CLS. */
+        .touch-controls {
+            display: none; /* Hidden until enabled by JS */
+            position: fixed;
+            bottom: 20px;
+            width: 100%;
+            max-width: 1200px; /* Keep controls from being too far apart on wide screens */
+            left: 50%;
+            transform: translateX(-50%);
+            justify-content: space-between;
+            padding: 0 20px;
+            box-sizing: border-box;
+            pointer-events: none; /* Let clicks pass through the container */
+            z-index: 10;
+        }
+        .touch-btn {
+            width: 70px;
+            height: 70px;
+            background-color: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: white;
+            user-select: none; /* Prevent text selection */
+            pointer-events: auto; /* Buttons are clickable */
+            text-shadow: 0 0 5px black;
+        }
+        .touch-btn:active {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Using <main> for the primary content of the page for semantic SEO -->
+    <main id="game-container">
+        <canvas id="gameCanvas" aria-label="Spelunker Game Screen"></canvas>
+        <!-- On-screen touch controls -->
+        <div id="touch-controls-container" class="touch-controls">
+            <div style="display: flex; gap: 16px;">
+                <button id="touch-left" class="touch-btn" aria-label="Move Left">◀</button>
+                <button id="touch-right" class="touch-btn" aria-label="Move Right">▶</button>
+            </div>
+            <button id="touch-jump" class="touch-btn" aria-label="Jump">▲</button>
+        </div>
+    </main>
+    
+    <!-- The game's JavaScript logic remains entirely UNCHANGED. -->
+    <!-- As a 'module' type, this script is deferred by default, which is optimal for performance. -->
+    <script type="module">
+        // --- GAME SETUP & CONSTANTS ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const TILE_SIZE = 32; 
+        const GRAVITY = 0.55; 
+        const JUMP_FORCE = -18.5; 
+        const ACCELERATION = 0.35;
+        const MAX_SPEED = 4.5;
+        const GROUND_FRICTION = 0.3; // Lower value = higher friction
+        const AIR_FRICTION = 0.95;
+
+        const TILE_TYPES = { EMPTY: 0, SOLID: 1, KEY: 3, DOOR: 4, SPIKE: 6 };
+        const COLORS = { 
+            PLAYER: '#E0E0E0', 
+            SOLID: '#888888', 
+            KEY: '#CCCCCC',    
+            BACKGROUND: '#222222', 
+            SPIKE: '#AAAAAA'  
+        };
+
+        // --- GAME STATE ---
+        let player, level, camera, sfx;
+        let keys = { 'ArrowLeft': false, 'ArrowRight': false, 'ArrowUp': false, 'Space': false };
+        let currentLevelNumber = 0;
+        
+        // --- CLASSES ---
+
+        class SoundEffects {
+            constructor() {
+                this.landSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 } }).toDestination();
+                this.hazardSynth = new Tone.Synth({
+                    oscillator: { type: 'sawtooth' },
+                    envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 }
+                }).toDestination();
+                this.jumpSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.2 } }).toDestination();
+                this.polySynth = new Tone.PolySynth(Tone.Synth, { envelope: { attack: 0.01, release: 0.4 } }).toDestination();
+                this.hazardSoundPlaying = false;
+            }
+            jump() {
+                if (this.jumpSynth.envelope.state === "stopped") {
+                    this.jumpSynth.triggerAttackRelease("C4", "8n", Tone.now(), 0.5);
+                }
+            }
+            land() { 
+                if (this.landSynth.envelope.state === "stopped") {
+                    this.landSynth.triggerAttackRelease("C2", "8n", Tone.now(), 0.3);
+                }
+            }
+            keyPickup() { this.polySynth.triggerAttackRelease(["C5", "E5", "G5"], "8n"); }
+            doorOpen() { this.polySynth.triggerAttackRelease(["G5", "B5", "D6"], "4n"); }
+            hazard() { 
+                if (!this.hazardSoundPlaying) {
+                    this.hazardSoundPlaying = true;
+                    this.hazardSynth.triggerAttackRelease("C#2", "8n", Tone.now());
+                    setTimeout(() => {
+                        this.hazardSoundPlaying = false;
+                    }, 150); // 150ms cooldown
+                }
+            }
+        }
+
+        class Player {
+            constructor(x, y) { this.spawn(x, y); }
+            
+            spawn(x, y) {
+                this.x = x; this.y = y;
+                this.width = TILE_SIZE; 
+                this.height = TILE_SIZE;
+                this.velocityX = 0; this.velocityY = 0;
+                this.onGround = false;
+                this.hasKey = false;
+                this.jumpRequested = false;
+                this.jumpBuffer = 0; 
+            }
+
+            update() {
+                if(this.jumpBuffer > 0) this.jumpBuffer--;
+
+                // Horizontal movement
+                if (keys['ArrowLeft']) this.velocityX -= ACCELERATION;
+                else if (keys['ArrowRight']) this.velocityX += ACCELERATION;
+                else this.velocityX *= (this.onGround ? GROUND_FRICTION : AIR_FRICTION);
+                
+                this.velocityX = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, this.velocityX));
+                if (Math.abs(this.velocityX) < 0.1) this.velocityX = 0;
+
+                // Vertical movement (Jumping)
+                if ((this.jumpRequested || keys['ArrowUp'] || keys['Space']) && this.onGround && this.jumpBuffer === 0) { 
+                    this.velocityY = JUMP_FORCE; 
+                    this.onGround = false; 
+                    sfx.jump(); 
+                    this.jumpBuffer = 10; // 10-frame cooldown on jumping
+                }
+                this.jumpRequested = false; 
+
+                // Apply gravity
+                this.velocityY += GRAVITY;
+                this.handleCollisions();
+
+                // FIX: Always reset if the player falls out of the world.
+                if (this.y > level.height * TILE_SIZE) {
+                    this.reset();
+                }
+            }
+
+            handleCollisions() {
+                this.x += this.velocityX; 
+                this.checkCollision('horizontal');
+                this.y += this.velocityY; 
+                this.checkCollision('vertical');
+            }
+
+            checkCollision(direction) {
+                const wasOnGround = this.onGround; 
+                this.onGround = false;
+                const tiles = level.getTilesAround(this.x, this.y, this.width, this.height);
+                for (const tile of tiles) {
+                    if (tile.type === TILE_TYPES.EMPTY) continue;
+                    // Basic AABB collision check
+                    if (this.x < tile.x + tile.width && this.x + this.width > tile.x && this.y < tile.y + tile.height && this.y + this.height > tile.y) {
+                        switch(tile.type) {
+                            case TILE_TYPES.SOLID: this.resolveSolidCollision(tile, direction); break;
+                            case TILE_TYPES.SPIKE: sfx.hazard(); this.reset(); return; // Early exit on death
+                            case TILE_TYPES.KEY: this.collectKey(tile.id); break;
+                            case TILE_TYPES.DOOR: this.openDoor(); break;
+                        }
+                    }
+                }
+                if (this.onGround && !wasOnGround) sfx.land();
+            }
+
+            resolveSolidCollision(tile, direction) {
+                if (direction === 'vertical') {
+                    if (this.velocityY > 0) { // Moving down
+                        this.y = tile.y - this.height; 
+                        this.onGround = true; 
+                    } else if (this.velocityY < 0) { // Moving up
+                        this.y = tile.y + tile.height; 
+                    }
+                    this.velocityY = 0;
+                } else if (direction === 'horizontal') {
+                    if (this.velocityX > 0) { // Moving right
+                        this.x = tile.x - this.width; 
+                    } else if (this.velocityX < 0) { // Moving left
+                        this.x = tile.x + tile.width; 
+                    }
+                    this.velocityX = 0;
+                }
+            }
+
+            collectKey(keyId) { 
+                if (!this.hasKey) { 
+                    this.hasKey = true;
+                    sfx.keyPickup(); 
+                    level.removeObject(keyId);
+                } 
+            }
+
+            openDoor() {
+                if (this.hasKey) { 
+                    sfx.doorOpen(); 
+                    goToNextLevel();
+                }
+            }
+
+            reset() { resetLevel(); }
+
+            draw(ctx, camera) { 
+                ctx.fillStyle = COLORS.PLAYER; 
+                ctx.fillRect(Math.floor(this.x - camera.x), Math.floor(this.y - camera.y), this.width, this.height); 
+            }
+        }
+
+        class Level {
+            constructor(width, height) { 
+                this.width = width; 
+                this.height = height; 
+                this.grid = [];
+                this.objects = [];
+                this.originalObjects = []; // To reset keys
+                this.criticalPath = new Set();
+            }
+            
+            removeObject(id) {
+                this.objects = this.objects.filter(obj => obj.id !== id);
+            }
+
+            procedurallyGenerate() {
+                this.grid = Array(this.height).fill(0).map(() => Array(this.width).fill(TILE_TYPES.SOLID));
+                this.objects = [];
+                this.criticalPath.clear();
+
+                const margin = 15;
+                const quarterWidth = this.width / 4;
+                const quarterHeight = this.height / 4;
+
+                const zones = [
+                    { xRange: [margin, quarterWidth], yRange: [margin, quarterHeight] },
+                    { xRange: [this.width - quarterWidth, this.width - margin], yRange: [margin, quarterHeight] },
+                    { xRange: [margin, quarterWidth], yRange: [this.height - quarterHeight, this.height - margin] },
+                    { xRange: [this.width - quarterWidth, this.width - margin], yRange: [this.height - quarterHeight, this.height - margin] }
+                ];
+
+                let startZoneIndex = Math.floor(Math.random() * zones.length);
+                let endZoneIndex;
+                do {
+                    endZoneIndex = Math.floor(Math.random() * zones.length);
+                } while (startZoneIndex === endZoneIndex);
+
+                const startZone = zones[startZoneIndex];
+                const endZone = zones[endZoneIndex];
+                
+                const getRandomPosInZone = (zone) => ({
+                    x: Math.floor(zone.xRange[0] + Math.random() * (zone.xRange[1] - zone.xRange[0])),
+                    y: Math.floor(zone.yRange[0] + Math.random() * (zone.yRange[1] - zone.yRange[0]))
+                });
+
+                const startPos = getRandomPosInZone(startZone);
+                const doorPos = getRandomPosInZone(endZone);
+                this.playerStart = { x: startPos.x * TILE_SIZE, y: startPos.y * TILE_SIZE };
+                
+                const keyPos = { x: this.width / 2 + (Math.random() - 0.5) * (this.width/3), y: this.height / 2 + (Math.random() - 0.5) * (this.height/3) };
+
+                const pathToKey = this.findPathBFS(startPos, keyPos);
+                const pathToDoor = this.findPathBFS(keyPos, doorPos);
+
+                if (!pathToKey || !pathToDoor) {
+                    console.error("Pathfinding failed, generating fallback level.");
+                    this.generateFallback();
+                    return;
+                }
+                const fullPath = [...pathToKey, ...pathToDoor];
+
+                this.carvePassage(fullPath);
+                this.addCaveFeatures();
+                this.addHazards();
+                this.fillPits();
+                
+                this.objects.push({ id: `key_${Date.now()}`, x: keyPos.x * TILE_SIZE, y: (keyPos.y - 1) * TILE_SIZE, type: TILE_TYPES.KEY });
+                this.objects.push({ id: `door_${Date.now()}`, x: doorPos.x * TILE_SIZE, y: (doorPos.y - 1) * TILE_SIZE, type: TILE_TYPES.DOOR });
+                this.originalObjects = JSON.parse(JSON.stringify(this.objects));
+            }
+            
+            carvePassage(path) {
+                const passageHeight = 5;
+                const passageWidth = 2;
+
+                for (const point of path) {
+                    for (let y = -passageHeight; y <= passageWidth; y++) {
+                        for (let x = -passageWidth; x <= passageWidth; x++) {
+                            const carveX = Math.round(point.x + x);
+                            const carveY = Math.round(point.y + y);
+                            if (this.grid[carveY]?.[carveX] !== undefined) {
+                                this.grid[carveY][carveX] = TILE_TYPES.EMPTY;
+                            }
+                        }
+                    }
+                    this.criticalPath.add(`${Math.round(point.x)},${Math.round(point.y + passageWidth)}`);
+                }
+                
+                for (let i = 1; i < path.length; i++) {
+                    const p1 = path[i-1];
+                    const p2 = path[i];
+                    if (p2.y < p1.y) {
+                        for (let x = -2; x <= 0; x++) {
+                           if (this.grid[p1.y + passageWidth]?.[p1.x + x] !== undefined) {
+                               this.grid[p1.y + passageWidth][p1.x + x] = TILE_TYPES.SOLID;
+                               this.grid[p1.y + passageWidth - 1][p1.x + x] = TILE_TYPES.EMPTY;
+                           }
+                        }
+                    }
+                }
+            }
+
+            addCaveFeatures() {
+                for (let y = 1; y < this.height - 1; y++) {
+                    for (let x = 1; x < this.width - 1; x++) {
+                        if (this.grid[y][x] === TILE_TYPES.SOLID) {
+                            this.grid[y][x] = (Math.random() < 0.45) ? TILE_TYPES.EMPTY : TILE_TYPES.SOLID;
+                        }
+                    }
+                }
+
+                for (let i = 0; i < 4; i++) {
+                    let newGrid = JSON.parse(JSON.stringify(this.grid));
+                    for (let y = 1; y < this.height - 1; y++) {
+                        for (let x = 1; x < this.width - 1; x++) {
+                            const neighbors = this.countAliveNeighbors(x, y);
+                            if (this.grid[y][x] === TILE_TYPES.SOLID) {
+                                newGrid[y][x] = (neighbors < 3) ? TILE_TYPES.EMPTY : TILE_TYPES.SOLID;
+                            } else {
+                                newGrid[y][x] = (neighbors > 4) ? TILE_TYPES.SOLID : TILE_TYPES.EMPTY;
+                            }
+                        }
+                    }
+                    this.grid = newGrid;
+                }
+            }
+            
+            countAliveNeighbors(x, y) {
+                let count = 0;
+                for (let i = -1; i <= 1; i++) {
+                    for (let j = -1; j <= 1; j++) {
+                        if (i === 0 && j === 0) continue;
+                        if (this.grid[y + i]?.[x + j] === TILE_TYPES.SOLID) {
+                            count++;
+                        }
+                    }
+                }
+                return count;
+            }
+
+            addHazards() {
+                const hazardCount = Math.floor((this.width * this.height) / 400);
+                for (let i = 0; i < hazardCount; i++) {
+                    let attempts = 0;
+                    while (attempts < 100) {
+                        const x = Math.floor(Math.random() * this.width);
+                        const y = Math.floor(Math.random() * this.height);
+                        attempts++;
+                        
+                        // FIX: Check a wider area for headroom to make jumps possible.
+                        let hasEnoughHeadroom = true;
+                        // Check a 3x3 area above the tile where the spike will be placed.
+                        for (let checkY = y - 3; checkY < y; checkY++) {
+                            for (let checkX = x - 1; checkX <= x + 1; checkX++) {
+                                // Ensure the check is within bounds and the tile is empty
+                                if (this.grid[checkY]?.[checkX] !== TILE_TYPES.EMPTY) {
+                                    hasEnoughHeadroom = false;
+                                    break;
+                                }
+                            }
+                            if (!hasEnoughHeadroom) break;
+                        }
+
+                        if (this.grid[y]?.[x] === TILE_TYPES.EMPTY && 
+                            this.grid[y+1]?.[x] === TILE_TYPES.SOLID &&
+                            !this.isSpikePlacementUnsafe(x, y) &&
+                            hasEnoughHeadroom) {
+                            
+                            this.grid[y][x] = TILE_TYPES.SPIKE;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            isSpikePlacementUnsafe(spikeX, spikeY) {
+                // Check against critical path to avoid blocking progress
+                for (let dx = -2; dx <= 2; dx++) {
+                    for (let dy = -1; dy <= 2; dy++) {
+                        if (this.criticalPath.has(`${spikeX + dx},${spikeY + 1 + dy}`)) {
+                            return true;
+                        }
+                    }
+                }
+            
+                // FIX: Check against the player's starting position to prevent spawn deaths.
+                // We define a small safe zone around the spawn point.
+                const playerStartGridX = Math.round(this.playerStart.x / TILE_SIZE);
+                const playerStartGridY = Math.round(this.playerStart.y / TILE_SIZE);
+            
+                // Check if the potential spike is within a 3x3 box centered on the player's start tile.
+                if (Math.abs(spikeX - playerStartGridX) <= 1 && Math.abs(spikeY - playerStartGridY) <= 1) {
+                    return true; // This position is unsafe because it's too close to the start.
+                }
+            
+                return false;
+            }
+
+            fillPits() {
+                for (let y = 1; y < this.height - 1; y++) {
+                    for (let x = 1; x < this.width - 1; x++) {
+                        const isPit = this.grid[y][x] === TILE_TYPES.EMPTY &&
+                                      this.grid[y+1][x] === TILE_TYPES.SOLID &&
+                                      this.grid[y][x-1] === TILE_TYPES.SOLID &&
+                                      this.grid[y][x+1] === TILE_TYPES.SOLID;
+                        
+                        if (isPit) {
+                            this.grid[y][x] = TILE_TYPES.SOLID;
+                        }
+                    }
+                }
+            }
+
+            generateFallback() {
+                this.grid = Array(this.height).fill(0).map(() => Array(this.width).fill(TILE_TYPES.EMPTY));
+                for(let y = 0; y < this.height; y++) {
+                    for(let x = 0; x < this.width; x++) {
+                        if(y > this.height - 5) this.grid[y][x] = TILE_TYPES.SOLID;
+                    }
+                }
+                this.objects.push({ id: `door_${Date.now()}`, x: (this.width - 5) * TILE_SIZE, y: (this.height - 7) * TILE_SIZE, type: TILE_TYPES.DOOR });
+                this.objects.push({ id: `key_${Date.now()}`, x: (10) * TILE_SIZE, y: (this.height - 7) * TILE_SIZE, type: TILE_TYPES.KEY });
+                this.originalObjects = JSON.parse(JSON.stringify(this.objects));
+            }
+
+            findPathBFS(start, end) {
+                const maxJumpHeight = 5; 
+                const maxJumpWidth = 6; 
+
+                const queue = [[start]];
+                const visited = new Set([`${start.x},${start.y}`]);
+                
+                while (queue.length > 0) {
+                    const path = queue.shift();
+                    const current = path[path.length - 1];
+
+                    if (Math.hypot(current.x - end.x, current.y - end.y) < 5) {
+                        return [...path, end];
+                    }
+                    
+                    let neighbors = [];
+                    neighbors.push({x: current.x - 1, y: current.y});
+                    neighbors.push({x: current.x + 1, y: current.y});
+                    for(let h = 1; h <= maxJumpHeight; h++) {
+                        for(let w = 1; w <= maxJumpWidth; w++) {
+                            neighbors.push({x: current.x + w, y: current.y - h});
+                            neighbors.push({x: current.x - w, y: current.y - h});
+                        }
+                    }
+                    neighbors.push({x: current.x, y: current.y + 1});
+
+                    for (let i = neighbors.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [neighbors[i], neighbors[j]] = [neighbors[j], neighbors[i]];
+                    }
+
+                    for (const neighbor of neighbors) {
+                        const key = `${neighbor.x},${neighbor.y}`;
+                        if (neighbor.x > 2 && neighbor.x < this.width - 2 && neighbor.y > 2 && neighbor.y < this.height - 2 && !visited.has(key)) {
+                            visited.add(key);
+                            const newPath = [...path, neighbor];
+                            queue.push(newPath);
+                        }
+                    }
+                }
+                return null;
+            }
+
+            getTilesAround(px, py, pWidth, pHeight) {
+                const tiles = [];
+                const playerCol = Math.floor((px + pWidth / 2) / TILE_SIZE);
+                const playerRow = Math.floor((py + pHeight / 2) / TILE_SIZE);
+                for (let row = playerRow - 2; row <= playerRow + 2; row++) {
+                    for (let col = playerCol - 2; col <= playerCol + 2; col++) {
+                        if (this.grid[row]?.[col] > TILE_TYPES.EMPTY) {
+                            tiles.push({ x: col * TILE_SIZE, y: row * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE, type: this.grid[row][col] });
+                        }
+                    }
+                }
+                this.objects.forEach(obj => {
+                    tiles.push({ ...obj, width: TILE_SIZE, height: TILE_SIZE });
+                });
+                return tiles;
+             }
+             
+            draw(ctx, camera) {
+                ctx.fillStyle = COLORS.BACKGROUND;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const startCol = Math.floor(camera.x / TILE_SIZE);
+                const endCol = Math.min(startCol + (canvas.width / TILE_SIZE) + 2, this.width);
+                const startRow = Math.floor(camera.y / TILE_SIZE);
+                const endRow = Math.min(startRow + (canvas.height / TILE_SIZE) + 2, this.height);
+
+                for (let row = startRow; row < endRow; row++) {
+                    for (let col = startCol; col < endCol; col++) {
+                        if (!this.grid[row]?.[col]) continue;
+                        
+                        const tileType = this.grid[row][col];
+                        const x = Math.floor(col * TILE_SIZE - camera.x);
+                        const y = Math.floor(row * TILE_SIZE - camera.y);
+
+                        if (tileType === TILE_TYPES.SOLID) {
+                            ctx.fillStyle = COLORS.SOLID;
+                            ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                        } else if (tileType === TILE_TYPES.SPIKE) {
+                            ctx.fillStyle = COLORS.SPIKE;
+                            const s = TILE_SIZE;
+                            ctx.fillRect(x, y + s * 0.75, s, s * 0.25);
+                            ctx.fillRect(x + s * 0.125, y + s * 0.5, s * 0.75, s * 0.25);
+                            ctx.fillRect(x + s * 0.25, y + s * 0.25, s * 0.5, s * 0.25);
+                            ctx.fillRect(x + s * 0.375, y, s * 0.25, s * 0.25);
+                        }
+                    }
+                }
+                
+                this.objects.forEach(obj => {
+                    const x = Math.floor(obj.x - camera.x);
+                    const y = Math.floor(obj.y - camera.y);
+                    if (obj.type === TILE_TYPES.KEY) this.drawKey(ctx, x, y);
+                    else if (obj.type === TILE_TYPES.DOOR) this.drawDoor(ctx, x, y);
+                });
+            }
+
+            drawKey(ctx, x, y) {
+                ctx.fillStyle = COLORS.KEY;
+                const s = TILE_SIZE;
+                const p = s / 8; // Using an 8x8 pixel grid for proportions
+
+                // Bow of the key (the handle)
+                ctx.fillRect(x + p * 2, y, p * 4, p * 2); // Top part of bow
+                ctx.fillRect(x + p, y + p * 2, p * 2, p * 2); // Left side of bow
+                ctx.fillRect(x + p * 5, y + p * 2, p * 2, p * 2); // Right side of bow
+
+                // Shank of the key (the long part)
+                ctx.fillRect(x + p * 3, y + p * 4, p * 2, p * 4);
+
+                // Bit of the key (the teeth)
+                ctx.fillRect(x + p, y + p * 6, p * 2, p * 2);
+            }
+
+            drawDoor(ctx, x, y) {
+                const doorHeight = TILE_SIZE;
+                const doorWidth = TILE_SIZE;
+                ctx.fillStyle = '#555555'; 
+                ctx.fillRect(x, y, doorWidth, doorHeight);
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(x + 4, y + 4, doorWidth - 8, doorHeight - 8);
+                if (!player.hasKey) {
+                    ctx.fillStyle = COLORS.KEY;
+                    const q = TILE_SIZE / 8;
+                    const kx = x + (doorWidth / 2);
+                    const ky = y + (doorHeight / 2);
+                    ctx.fillRect(kx - q, ky - q * 2, q * 2, q * 2);
+                    ctx.fillRect(kx - q/2, ky, q, q*2);
+                }
+            }
+        }
+
+        class Camera {
+            constructor() { this.x = 0; this.y = 0; }
+            update() {
+                const targetX = player.x - (canvas.width / 2) + (player.width / 2);
+                const targetY = player.y - (canvas.height / 2) + (player.height / 2);
+                this.x += (targetX - this.x) * 0.1;
+                this.y += (targetY - this.y) * 0.1;
+                this.x = Math.max(0, Math.min(this.x, level.width * TILE_SIZE - canvas.width));
+                this.y = Math.min(this.y, level.height * TILE_SIZE - canvas.height);
+            }
+        }
+
+        // --- GAME FLOW FUNCTIONS ---
+
+        function goToNextLevel() {
+            currentLevelNumber++;
+            const newWidth = 120 + currentLevelNumber * 10;
+            const newHeight = 80 + currentLevelNumber * 5;
+            level = new Level(newWidth, newHeight);
+            level.procedurallyGenerate();
+            resetLevel();
+        }
+
+        function resetLevel() {
+            // FIX: Add a safety check to ensure the spawn tile is not a hazard,
+            // just in case the generation logic has an unexpected edge case.
+            const startX = Math.round(level.playerStart.x / TILE_SIZE);
+            const startY = Math.round(level.playerStart.y / TILE_SIZE);
+            if (level.grid[startY]?.[startX] === TILE_TYPES.SPIKE) {
+                level.grid[startY][startX] = TILE_TYPES.EMPTY;
+            }
+            // Also ensure there's solid ground to stand on.
+            if (level.grid[startY + 1]?.[startX] !== TILE_TYPES.SOLID) {
+                level.grid[startY + 1][startX] = TILE_TYPES.SOLID;
+            }
+            
+            player.spawn(level.playerStart.x, level.playerStart.y);
+            player.hasKey = false;
+            level.objects = JSON.parse(JSON.stringify(level.originalObjects));
+            camera.update();
+        }
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+
+        // --- INITIALIZATION ---
+
+        function init() {
+            resizeCanvas();
+            sfx = new SoundEffects();
+            player = new Player(0, 0); // Player is created once
+            camera = new Camera();
+            goToNextLevel(); // This now creates the first level
+
+            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (isTouchDevice) {
+                document.getElementById('touch-controls-container').style.display = 'flex';
+            }
+
+            window.addEventListener('resize', resizeCanvas);
+            
+            window.addEventListener('keydown', (e) => { 
+                if (keys[e.code] !== undefined) e.preventDefault();
+                keys[e.code] = true;
+            });
+            window.addEventListener('keyup', (e) => { 
+                if (keys[e.code] !== undefined) { 
+                    e.preventDefault(); 
+                    keys[e.code] = false; 
+                }
+            });
+            
+            const touchLeft = document.getElementById('touch-left');
+            const touchRight = document.getElementById('touch-right');
+            const touchJump = document.getElementById('touch-jump');
+
+            touchLeft.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowLeft'] = true; }, { passive: false });
+            touchLeft.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowLeft'] = false; });
+            
+            touchRight.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowRight'] = true; }, { passive: false });
+            touchRight.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowRight'] = false; });
+
+            touchJump.addEventListener('touchstart', (e) => { e.preventDefault(); player.jumpRequested = true; }, { passive: false });
+            touchJump.addEventListener('touchend', (e) => { e.preventDefault(); player.jumpRequested = false; });
+
+            const startAudio = () => {
+                if (Tone.context.state !== 'running') { Tone.start(); }
+                document.body.removeEventListener('click', startAudio);
+                document.body.removeEventListener('keydown', startAudio);
+                document.body.removeEventListener('touchstart', startAudio);
+            };
+            document.body.addEventListener('click', startAudio);
+            document.body.addEventListener('keydown', startAudio);
+            document.body.addEventListener('touchstart', startAudio);
+
+            gameLoop();
+        }
+
+        // --- MAIN GAME LOOP ---
+
+        function gameLoop() {
+            player.update();
+            camera.update();
+            
+            ctx.save();
+            level.draw(ctx, camera);
+            player.draw(ctx, camera);
+            ctx.restore();
+
+            // --- (EDIT) Removed the level counter from the screen ---
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        init();
+    </script>
+</body>
+</html>
